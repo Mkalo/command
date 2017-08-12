@@ -45,41 +45,69 @@ class Command {
 			}
 		})
 
-		let hookCommand = message => {
-			let args = null
+		let lastError,
+			hookCommand = message => {
+				let args = null
 
-			try {
-				args = parseArgs(stripOuterHTML(message))
-			}
-			catch(e) {
-				this.message('Syntax error: ' + e.message)
-				return
+				try {
+					args = parseArgs(stripOuterHTML(message))
+				}
+				catch(e) {
+					return 'Syntax error: ' + e.message
+				}
+
+				try {
+					if(!this.exec(args)) return 'Unknown command "' + args[0] + '".'
+				}
+				catch(e) {
+					this.message('Error running callback for command "' + args[0] + '".')
+					console.error(e)
+				}
 			}
 
-			try {
-				if(!this.exec(args)) this.message('Unknown command "' + args[0] + '".')
-			}
-			catch(e) {
-				this.message('Error running callback for command "' + args[0] + '".')
-				console.error(e)
-			}
-		}
-
-		dispatch.hook('C_CHAT', 1, {order: 10}, event => {
+		dispatch.hook('C_CHAT', 1, {order: -10}, event => {
 			if(event.channel == 11 + PRIVATE_CHANNEL_INDEX) {
-				hookCommand(event.message)
-				return false
+				lastError = hookCommand(event.message)
+				if(!lastError) return false
 			}
-
-			if(PUBLIC_ENABLE) {
+			else if(PUBLIC_ENABLE) {
 				let str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
 
 				if(str) {
-					hookCommand(str[1])
-					return false
+					lastError = hookCommand(str[1])
+					if(!lastError) return false
 				}
 			}
 		})
+
+		// Let other modules handle possible commands before we silence them
+		dispatch.hook('C_CHAT', 1, {order: 10, filter: {silenced: null}}, event => {
+			if(lastError) {
+				this.message(lastError)
+				lastError = undefined
+				return false
+			}
+		})
+
+		if(PUBLIC_ENABLE) {
+			dispatch.hook('C_WHISPER', 1, {order: -10}, event => {
+				let str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
+
+				if(str) {
+					lastError = hookCommand(str[1])
+					if(!lastError) return false
+				}
+			})
+
+			// Let other modules handle possible commands before we silence them
+			dispatch.hook('C_WHISPER', 1, {order: 10, filter: {silenced: null}}, event => {
+				if(lastError) {
+					this.message(lastError)
+					lastError = undefined
+					return false
+				}
+			})
+		}
 	}
 
 	exec(str) {
