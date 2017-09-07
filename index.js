@@ -83,7 +83,7 @@ class Command {
 		// Let other modules handle possible commands before we silence them
 		dispatch.hook('C_CHAT', 1, {order: 10, filter: {silenced: null}}, event => {
 			if(lastError) {
-				this.message(lastError)
+				if(!event.$silenced) this.message(lastError)
 				lastError = undefined
 				return false
 			}
@@ -102,7 +102,7 @@ class Command {
 			// Let other modules handle possible commands before we silence them
 			dispatch.hook('C_WHISPER', 1, {order: 10, filter: {silenced: null}}, event => {
 				if(lastError) {
-					this.message(lastError)
+					if(!event.$silenced) this.message(lastError)
 					lastError = undefined
 					return false
 				}
