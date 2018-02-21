@@ -141,6 +141,15 @@ class Command {
 		this.hooks[cmd] = cb
 	}
 
+	remove(cmd) {
+		if(Array.isArray(cmd)) {
+			for(let c of cmd) this.remove(c)
+			return
+		}
+
+		delete this.hooks[cmd.toLowerCase()]
+	}
+
 	message(msg) {
 		this.dispatch.toClient('S_PRIVATE_CHAT', 1, {
 			channel: PRIVATE_CHANNEL_ID,

@@ -40,6 +40,11 @@ Adds one or more command hooks. All commands must be unique and are case insensi
 
 `callback` receives string arguments from the command hooked.
 
+#### `remove(command)`
+Removes one or more command hooks.
+
+`command` may be a string or an array of strings.
+
 #### `message(msg)`
 Sends a message in the `[Proxy]` channel.
 
