@@ -147,6 +147,9 @@ class Command {
 			return
 		}
 
+		if(typeof cmd !== 'string') throw new Error('Command must be a string or array of strings')
+		if(cmd === '') throw new Error('Command must not be an empty string')
+
 		delete this.hooks[cmd.toLowerCase()]
 	}
 
