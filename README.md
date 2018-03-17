@@ -72,7 +72,7 @@ Removes one or more command hooks.
 `command` may be a string or an array of strings.
 
 #### `message(msg)`
-Sends a message in the `[Proxy]` channel.
+Sends a message in the `[Proxy]` channel. May contain HTML.
 
 #### `exec(str)`
 Executes a raw command string. If `str` is an array then it will be interpreted as arguments instead.
