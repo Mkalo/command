@@ -18,8 +18,8 @@ Type `/proxy` into chat to switch to the command line, then enter the specified 
 ## Developers
 To use Command in your module, first require it, then call the factory `Command(dispatch)` to get an instance of `Command`.
 
-### Example
-```javascript
+### Examples
+```js
 const Command = require('command')
 
 module.exports = function MyMod(dispatch) {
@@ -31,14 +31,38 @@ module.exports = function MyMod(dispatch) {
 }
 ```
 
+#### Sub-Commands:
+```js
+const Command = require('command')
+
+module.exports = function SubCommandTest(dispatch) {
+	const command = Command(dispatch)
+
+	command.add('test', {
+		$default() { command.message('Usage: test [echo|hello]') },
+		echo(...args) {
+			if(args[0] === undefined) command.message('Usage: test echo [msg]')
+			else command.message(args.join(' '))
+		},
+		hello: {
+			$default() { command.message('Usage: test hello [blue|red]') },
+			blue() { command.message('<font color="#5555ff">Hello ponies!</font>') },
+			red() { command.message('<font color="#ff5555">Hello ponies!</font>') }
+		}
+	})
+}
+```
+
 ## Command
 ### Methods
-#### `add(command, callback)`
+#### `add(command, callback[, context])`
 Adds one or more command hooks. All commands must be unique and are case insensitive.
 
 `command` may be a string or an array of strings.
 
-`callback` receives string arguments from the command hooked.
+`callback` may be a function or a recursive sub-command object. Callback receives a variable number of input string arguments.
+
+`context` optional `this` to pass to callbacks. Default is unspecified.
 
 #### `remove(command)`
 Removes one or more command hooks.

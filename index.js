@@ -34,7 +34,7 @@ class Command {
 		dispatch.hook('C_LEAVE_PRIVATE_CHANNEL', 1, event => event.index == PRIVATE_CHANNEL_INDEX ? false : undefined)
 
 		dispatch.hook('C_REQUEST_PRIVATE_CHANNEL_INFO', 1, event => {
-			if(event.channelId == PRIVATE_CHANNEL_ID) {
+			if(event.channelId === PRIVATE_CHANNEL_ID) {
 				dispatch.toClient('S_REQUEST_PRIVATE_CHANNEL_INFO', 1, {
 					owner: 1,
 					password: 0,
@@ -66,12 +66,12 @@ class Command {
 			}
 
 		dispatch.hook('C_CHAT', 1, {order: -10}, event => {
-			if(event.channel == 11 + PRIVATE_CHANNEL_INDEX) {
+			if(event.channel === 11 + PRIVATE_CHANNEL_INDEX) {
 				lastError = hookCommand(event.message)
 				if(!lastError) return false
 			}
 			else if(PUBLIC_ENABLE) {
-				let str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
+				const str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
 
 				if(str) {
 					lastError = hookCommand(str[1])
@@ -91,7 +91,7 @@ class Command {
 
 		if(PUBLIC_ENABLE) {
 			dispatch.hook('C_WHISPER', 1, {order: -10}, event => {
-				let str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
+				const str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
 
 				if(str) {
 					lastError = hookCommand(str[1])
@@ -111,23 +111,27 @@ class Command {
 	}
 
 	exec(str) {
-		let args = Array.isArray(str) ? str : parseArgs(str)
+		const args = Array.isArray(str) ? str : parseArgs(str)
 
 		if(args.length === 0) return false
 
-		let cmd = this.hooks[args[0].toLowerCase()]
+		const cb = this.hooks[args[0].toLowerCase()]
 
-		if(cmd) {
-			args = args.slice()
-			args.shift()
-			cmd(...args)
+		if(cb) {
+			cb.call(...args)
 			return true
 		}
 
 		return false
 	}
 
-	add(cmd, cb) {
+	add(cmd, cb, ctx) {
+		if(typeof cb === 'function') {
+			if(ctx !== undefined) cb = cb.bind(ctx)
+		}
+		else if(typeof cb === 'object') cb = makeSubCommandHandler(cb, ctx)
+		else throw new Error('Callback must be a function or object')
+
 		if(Array.isArray(cmd)) {
 			for(let c of cmd) this.add(c, cb)
 			return
@@ -163,16 +167,36 @@ class Command {
 	}
 }
 
+function makeSubCommandHandler(_obj, ctx) {
+	const obj = {}
+
+	for(let cmd in _obj) {
+		const cb = _obj[cmd]
+
+		cmd = cmd.toLowerCase()
+
+		if(typeof cb === 'function') obj[cmd] = ctx !== undefined ? cb.bind(ctx) : cb
+		else if(typeof cb === 'object') obj[cmd] = makeSubCommandHandler(cb, ctx)
+		else throw new Error('Sub-command callback must be a function or object')
+	}
+
+	return function subCommandHandler(cmd) {
+		const cb = (cmd !== undefined ? obj[cmd.toLowerCase()] : null) || obj.$default
+
+		if(cb) cb.call(...arguments)
+	}
+}
+
 function stripOuterHTML(str) {
 	return str.replace(/^<[^>]+>|<\/[^>]+><[^\/][^>]*>|<\/[^>]+>$/g, '')
 }
 
 function parseArgs(str) {
-	let args = [],
-		arg = '',
-		quote = ''
+	const parseHTML = /.*?<\/.*?>/g,
+		args = []
 
-	let parseHTML = /.*?<\/.*?>/g
+	let arg = '',
+		quote = ''
 
 	for(let i = 0, c = ''; i < str.length; i++) {
 		c = str[i]
@@ -230,12 +254,12 @@ function parseArgs(str) {
 	return args
 }
 
-let map = new WeakMap()
+const map = new WeakMap()
 
 module.exports = function Require(dispatch) {
 	if(map.has(dispatch.base)) return map.get(dispatch.base)
 
-	let command = new Command(dispatch)
-	map.set(dispatch.base, command)
-	return command
+	const instance = new Command(dispatch)
+	map.set(dispatch.base, instance)
+	return instance
 }
