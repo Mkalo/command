@@ -60,7 +60,9 @@ Adds one or more command hooks. All commands must be unique and are case insensi
 
 `command` may be a string or an array of strings.
 
-`callback` may be a function or a recursive sub-command object. Callback receives a variable number of input string arguments.
+`callback` may be a function or an object. Callback receives a variable number of input string arguments. If an object is provided, the object's keys are registered as sub-commands which may in turn be either a callback or another object. Two special keys are usable for sub-commands:
+* `$none` called if there were no arguments.
+* `$default` called if no other hook was matched.
 
 `context` optional `this` to pass to callbacks. Default is unspecified.
 

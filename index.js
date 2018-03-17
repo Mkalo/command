@@ -181,7 +181,7 @@ function makeSubCommandHandler(_obj, ctx) {
 	}
 
 	return function subCommandHandler(cmd) {
-		const cb = (cmd !== undefined ? obj[cmd.toLowerCase()] : null) || obj.$default
+		const cb = (cmd !== undefined ? obj[cmd.toLowerCase()] : obj.$none) || obj.$default
 
 		if(cb) cb.call(...arguments)
 	}
