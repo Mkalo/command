@@ -14,9 +14,9 @@ class Command {
 		this.loaded = false
 		this.hooks = {}
 
-		dispatch.hook('S_LOGIN', 2, () => { this.loaded = false })
+		dispatch.hook('S_LOGIN', 'raw', () => { this.loaded = false })
 
-		dispatch.hook('S_LOAD_CLIENT_USER_SETTING', 1, () => {
+		dispatch.hook('S_LOAD_CLIENT_USER_SETTING', 'raw', () => {
 			if(!this.loaded && (this.loaded = true))
 				process.nextTick(() => {
 					dispatch.toClient('S_JOIN_PRIVATE_CHANNEL', 1, {
