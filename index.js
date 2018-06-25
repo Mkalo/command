@@ -30,8 +30,8 @@ class Command {
 				})
 		})
 
-		dispatch.hook('S_JOIN_PRIVATE_CHANNEL', 1, event => event.index == PRIVATE_CHANNEL_INDEX ? false : undefined)
-		dispatch.hook('C_LEAVE_PRIVATE_CHANNEL', 1, event => event.index == PRIVATE_CHANNEL_INDEX ? false : undefined)
+		dispatch.hook('S_JOIN_PRIVATE_CHANNEL', 1, event => event.index === PRIVATE_CHANNEL_INDEX ? false : undefined)
+		dispatch.hook('C_LEAVE_PRIVATE_CHANNEL', 1, event => event.index === PRIVATE_CHANNEL_INDEX ? false : undefined)
 
 		dispatch.hook('C_REQUEST_PRIVATE_CHANNEL_INFO', 1, event => {
 			if(event.channelId === PRIVATE_CHANNEL_ID) {
@@ -45,69 +45,65 @@ class Command {
 			}
 		})
 
-		let lastError,
-			hookCommand = message => {
-				let args = null
+		let lastError = '',
+			hookOverride = (name, version, cb) => {
+				dispatch.hook(name, version, {order: -10}, cb)
 
+				// Let other modules handle possible commands before we silence them
+				dispatch.hook(name, version, {order: 10, filter: {silenced: null}}, event => {
+					if(lastError) {
+						if(!event.$silenced) this.message(lastError)
+						lastError = ''
+						return false
+					}
+				})
+			},
+			handleCommand = message => {
 				try {
-					args = parseArgs(stripOuterHTML(message))
+					var args = parseArgs(stripOuterHTML(message))
 				}
 				catch(e) {
-					return 'Syntax error: ' + e.message
+					lastError = 'Syntax error: ' + e.message
+					return
 				}
 
 				try {
-					if(!this.exec(args)) return 'Unknown command "' + args[0] + '".'
+					if(!this.exec(args)) {
+						lastError = `Unknown command "${args[0]}".`
+						return
+					}
 				}
 				catch(e) {
 					this.message('Error running callback for command "' + args[0] + '".')
 					console.error(e)
 				}
-			}
 
-		dispatch.hook('C_CHAT', 1, {order: -10}, event => {
-			if(event.channel === 11 + PRIVATE_CHANNEL_INDEX) {
-				lastError = hookCommand(event.message)
-				if(!lastError) return false
-			}
-			else if(PUBLIC_ENABLE) {
-				const str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
-
-				if(str) {
-					lastError = hookCommand(str[1])
-					if(!lastError) return false
-				}
-			}
-		})
-
-		// Let other modules handle possible commands before we silence them
-		dispatch.hook('C_CHAT', 1, {order: 10, filter: {silenced: null}}, event => {
-			if(lastError) {
-				if(!event.$silenced) this.message(lastError)
-				lastError = undefined
+				lastError = ''
 				return false
 			}
+
+		// /! commands
+		hookOverride('C_OP_COMMAND', 1, event => handleCommand(event.command))
+
+		hookOverride('C_CHAT', 1, event => {
+			// Proxy channel
+			if(event.channel === 11 + PRIVATE_CHANNEL_INDEX) return handleCommand(event.message)
+
+			// Any channel with regex match
+			if(PUBLIC_ENABLE) {
+				const match = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
+
+				if(match) return handleCommand(match[1])
+			}
 		})
 
-		if(PUBLIC_ENABLE) {
-			dispatch.hook('C_WHISPER', 1, {order: -10}, event => {
-				const str = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
+		// Whispers with regex match
+		if(PUBLIC_ENABLE)
+			hookOverride('C_WHISPER', 1, event => {
+				const match = PUBLIC_MATCH.exec(stripOuterHTML(event.message))
 
-				if(str) {
-					lastError = hookCommand(str[1])
-					if(!lastError) return false
-				}
+				if(match) return handleCommand(match[1])
 			})
-
-			// Let other modules handle possible commands before we silence them
-			dispatch.hook('C_WHISPER', 1, {order: 10, filter: {silenced: null}}, event => {
-				if(lastError) {
-					if(!event.$silenced) this.message(lastError)
-					lastError = undefined
-					return false
-				}
-			})
-		}
 	}
 
 	exec(str) {
